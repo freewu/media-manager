@@ -1,0 +1,10 @@
+# crates.io 直连在国内经常不可用，这里统一走中科大镜像。
+# 该配置只作用于本项目（cargo 会从当前工作目录向上查找 .cargo/config.toml）。
+[source.crates-io]
+replace-with = "ustc"
+
+[source.ustc]
+registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+
+[net]
+git-fetch-with-cli = true

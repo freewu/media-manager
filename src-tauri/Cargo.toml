@@ -1,0 +1,50 @@
+[package]
+name = "media-manager"
+version = "0.1.0"
+description = "本地媒体资源管理应用"
+authors = ["bluefrog"]
+edition = "2021"
+rust-version = "1.77"
+
+# Tauri 需要 lib 形式以便在移动端复用（桌面端用 rlib 即可）
+[lib]
+name = "media_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+# lib/bin 自带的单元测试可执行文件不会带上 tauri 生成的 Windows 清单，
+# 启动时会因 comctl32 v5 缺少 TaskDialogIndirect 而崩溃，
+# 因此测试全部放在 tests/ 目录（见 build.rs）。
+test = false
+doctest = false
+
+[[bin]]
+name = "media-manager"
+path = "src/main.rs"
+test = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# bundled: 随应用一起编译 SQLite，无需系统预装
+rusqlite = { version = "0.40", features = ["bundled"] }
+
+walkdir = "2.5"
+thiserror = "2"
+
+[dev-dependencies]
+# mock_app()：让扫描逻辑可以在不启动窗口的情况下做端到端测试
+tauri = { version = "2", features = ["test"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

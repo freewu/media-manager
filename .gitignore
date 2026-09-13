@@ -1,32 +1,27 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# ---------- Node / 前端 ----------
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Test binary, built with `go test -c`
-*.test
+# ---------- Rust / Tauri ----------
+src-tauri/target/
+src-tauri/gen/schemas/
 
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-*.coverprofile
-profile.cov
+# ---------- 应用数据 ----------
+# SQLite 数据库固定落在 应用目录/.data/data.db
+.data/
+*.db
+*.db-wal
+*.db-shm
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# env file
-.env
-
-# Editor/IDE
-# .idea/
-# .vscode/
+# ---------- 其它 ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
