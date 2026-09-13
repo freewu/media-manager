@@ -1,0 +1,169 @@
+name: Release
+
+# 打 tag（v*）即触发：三个平台各编译一份独立可执行文件，附到 GitHub Release。
+# 也可以手动触发（Actions → Release → Run workflow）：tag 留空 = 只构建产物不发布。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布 tag（如 v0.2.0）；留空则只构建产物、不创建 Release"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  build:
+    name: 构建 ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc
+            suffix: ".exe"
+          - name: linux-x86_64
+            os: ubuntu-22.04
+            targets: x86_64-unknown-linux-gnu
+            suffix: ""
+          # 一台 macOS runner 同时出 Apple Silicon 与 Intel 两个二进制
+          - name: macos
+            os: macos-14
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+            suffix: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      # 仓库里的 .cargo/config.toml 是把 crates.io 换成了中科大镜像（本地网络需要），
+      # runner 能直连官方源，去掉它以排除镜像故障带来的不确定性。
+      - name: 恢复官方 crates.io
+        shell: bash
+        run: rm -f .cargo/config.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.name }}
+
+      - name: 安装 Linux 系统依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential curl wget file libssl-dev libxdo-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 校验 tag 与版本号一致
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "✗ tag ${GITHUB_REF_NAME} 与 package.json 的 ${version} 不一致（先跑 just release <版本>）"
+            exit 1
+          fi
+          echo "✓ 版本 ${version}"
+
+      # 前端构建由 beforeBuildCommand（npm run build）自动执行
+      - name: 编译 release 二进制（--no-bundle，不打安装包）
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target in $(echo "${{ matrix.targets }}" | tr ',' ' '); do
+            echo "==> $target"
+            npm run app:build -- --no-bundle --target "$target"
+          done
+
+      - name: 整理成独立可执行文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          mkdir -p out
+          for target in $(echo "${{ matrix.targets }}" | tr ',' ' '); do
+            case "$target" in
+              x86_64-pc-windows-msvc)   platform="windows-x86_64" ;;
+              x86_64-unknown-linux-gnu) platform="linux-x86_64" ;;
+              aarch64-apple-darwin)     platform="macos-aarch64" ;;
+              x86_64-apple-darwin)      platform="macos-x86_64" ;;
+              *) echo "未知 target: $target"; exit 1 ;;
+            esac
+            src="src-tauri/target/${target}/release/media-manager${{ matrix.suffix }}"
+            dst="out/media-manager-${version}-${platform}${{ matrix.suffix }}"
+            cp "$src" "$dst"
+            ls -lh "$dst"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: 发布 Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 生成 SHA256 校验和
+        run: |
+          cd dist
+          ls -lh
+          sha256sum ./* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+          name: MediaManager ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+          files: dist/*
+          draft: false
+          body: |
+            ## 独立可执行文件
+
+            | 平台 | 文件 |
+            | --- | --- |
+            | Windows 10/11 x64 | `media-manager-*-windows-x86_64.exe` |
+            | macOS（Apple Silicon） | `media-manager-*-macos-aarch64` |
+            | macOS（Intel） | `media-manager-*-macos-x86_64` |
+            | Linux x64 | `media-manager-*-linux-x86_64` |
+
+            下载后直接运行，数据会自动建在**可执行文件同级目录**的 `.data/data.db`；
+            也可以用环境变量 `MEDIA_MANAGER_HOME` 指定数据目录。
+
+            校验完整性：`sha256sum -c SHA256SUMS.txt`
+
+            ## 运行环境
+
+            - **Windows**：需要 WebView2 运行时（Win11 内置，Win10 一般已随 Edge 安装）
+            - **macOS**：未签名，首次运行请右键「打开」，或 `xattr -dr com.apple.quarantine ./media-manager-*`
+            - **Linux**：需要 WebKitGTK 4.1 与 GTK3，例如
+              `sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0`（Ubuntu 22.04+）
