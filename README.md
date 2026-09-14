@@ -41,8 +41,9 @@
 
 ```bash
 just version           # 看当前版本（校验各文件是否一致）
+just release           # 不带参数：终端里问一下要哪个版本（回车 = patch）
 just release patch     # 0.1.0 → 0.1.1，改版本 + commit + tag + push
-just release 0.2.0 --dry-run   # 只预览
+just release 0.2.0 --dry-run   # 只预览（默认下一个 patch），不改文件不提交
 ```
 
 Release 产物命名：`media-manager-<版本>-<windows-x86_64.exe|macos-aarch64|macos-x86_64|linux-x86_64>`。

@@ -132,10 +132,10 @@ version:
 bump spec:
     @{{node}} scripts/bump-version.mjs {{spec}}
 
-# 发版：改版本号 → commit → tag v<版本> → push
-# push tag 后 GitHub Actions 自动编译三平台独立可执行文件并创建 Release。
-# 追加 --dry-run 预览，--no-push 只提交打 tag 不推送。
-release spec *args:
+# 发版：改版本号 → commit → tag v<版本> → push，push tag 自动出三平台 Release
+# 用法：just release（交互式，回车 = patch）| just release patch | just release 0.2.0
+#       just release --dry-run（预览下一个 patch）| just release 1.0.0 --no-push
+release spec="" *args:
     @NODE_BIN={{node}} sh scripts/release.sh {{spec}} {{args}}
 
 # ---------------------------------------------------------------- 别名

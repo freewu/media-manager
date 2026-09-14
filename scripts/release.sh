@@ -6,11 +6,8 @@
 #   4. git push（分支 + tag，tag 推送即触发 GitHub Actions 三平台打包与 Release）
 #
 # 用法：sh scripts/release.sh 0.2.0 | patch | minor | major [--dry-run] [--no-push]
+#       不给版本参数时：终端下交互式询问（回车 = patch），非终端直接报用法
 set -eu
-
-spec="${1:-}"
-[ -n "$spec" ] || { echo "用法：just release <版本|major|minor|patch>" >&2; exit 2; }
-shift
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
@@ -19,15 +16,49 @@ cd "$root"
 node_bin="${NODE_BIN:-node}"
 command -v "$node_bin" >/dev/null 2>&1 || { echo "✗ 找不到 $node_bin" >&2; exit 1; }
 
+# 参数解析：joker 与版本号不分先后（just 把空参数展开成空字符串，不能按位置取）
+spec=""
 dry_run=0
 no_push=0
 for arg in "$@"; do
     case "$arg" in
         --dry-run) dry_run=1 ;;
         --no-push) no_push=1 ;;
-        *) echo "未知参数：$arg" >&2; exit 2 ;;
+        -?*) echo "未知参数：$arg" >&2; exit 2 ;;
+        "" ) ;;
+        *)
+            if [ -n "$spec" ]; then echo "多余的参数：$arg" >&2; exit 2; fi
+            spec="$arg"
+            ;;
     esac
 done
+
+usage() {
+    cat >&2 <<'EOF'
+用法：just release <版本|major|minor|patch> [--dry-run] [--no-push]
+
+  just release 0.2.0     指定版本
+  just release patch     0.1.0 → 0.1.1（也支持 minor / major）
+  just release --dry-run 预览下一个 patch 版本的改动
+EOF
+}
+
+# 没给版本参数：终端下问一下，否则报用法
+if [ -z "$spec" ]; then
+    if [ "$dry_run" -eq 1 ]; then
+        spec="patch"
+    elif [ -t 0 ] && [ -t 1 ]; then
+        current="$("$node_bin" scripts/bump-version.mjs --current)"
+        printf '当前版本 %s\n' "$current"
+        printf '新版本（回车 = patch，也可输入 x.y.z / minor / major）： '
+        read -r spec || spec=""
+        [ -n "$spec" ] || spec="patch"
+        printf '\n'
+    else
+        usage
+        exit 2
+    fi
+fi
 
 if [ "$dry_run" -eq 0 ] && [ -n "$(git status --porcelain)" ]; then
     echo "✗ 工作区有未提交的改动，先提交或 stash 再发版：" >&2

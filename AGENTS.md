@@ -36,7 +36,10 @@ git push origin main            # 或 git push origin HEAD
 ### 1.2 每次改版本号 → 必须打 tag → 触发三平台自动打包 Release
 
 ```bash
-just release 0.2.0              # 或 just release patch / minor / major
+just release 0.2.0              # 指定版本
+just release patch              # 也支持 minor / major
+just release                    # 不带参数：终端里问你要哪个版本（回车 = patch）
+just release --dry-run          # 只预览（默认下一个 patch），不改文件不提交
 ```
 
 这一条命令会依次做：
@@ -55,6 +58,9 @@ just release 0.2.0              # 或 just release patch / minor / major
 > 规则：**版本号改动**和**打 tag** 永远是同一次提交，tag 名必须等于 `v` + 三个文件里的版本号。
 > 工作流里有一步会校验 `tag == package.json version`，不一致直接失败。
 > 临时验证工作流可以手动触发（Actions → Release → Run workflow），tag 留空则只构建产物不发布。
+
+其它参数：`--no-push`（只 commit + 打 tag，先不推）、`just bump <版本>`（只改版本号不提交）。
+非终端环境（CI/管道）下不带版本参数会直接报用法并退出，不会卡在等输入。
 
 ---
 

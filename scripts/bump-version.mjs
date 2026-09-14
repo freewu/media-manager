@@ -3,7 +3,8 @@
  * 版本号统一修改 / 查看：package.json、src-tauri/tauri.conf.json、
  * src-tauri/Cargo.toml、src-tauri/Cargo.lock
  *
- *   node scripts/bump-version.mjs --show          # 只看当前版本（校验三处是否一致）
+ *   node scripts/bump-version.mjs --show          # 只看当前版本（校验各处是否一致）
+ *   node scripts/bump-version.mjs --current       # 只把当前版本号打到 stdout
  *   node scripts/bump-version.mjs --dry-run 0.2.0 # 预览
  *   node scripts/bump-version.mjs 0.2.0           # 精确版本
  *   node scripts/bump-version.mjs patch           # patch / minor / major
@@ -71,6 +72,7 @@ const skipped = current.filter((entry) => entry.skip);
 const argv = process.argv.slice(2);
 const dryRun = argv.includes("--dry-run");
 const show = argv.includes("--show") || argv.length === 0;
+const onlyCurrent = argv.includes("--current");
 const spec = argv.find((arg) => !arg.startsWith("-"));
 
 const versionOf = (entry) => entry.current;
@@ -85,13 +87,19 @@ const version = [...versions][0];
 
 if (!/^\d+\.\d+\.\d+/.test(version)) fail(`当前版本号格式异常：${version}`);
 
+// --current：stdout 只吐版本号，给脚本用
+if (onlyCurrent) {
+  console.log(version);
+  process.exit(0);
+}
+
 if (show && !spec) {
   log(`当前版本  ${version}`);
   for (const entry of required) log(`  ✓ ${entry.target.file.padEnd(26)} ${entry.current}`);
   for (const entry of skipped) log(`  - ${entry.target.file.padEnd(26)} 跳过（未找到记录）`);
   log("");
   log("改版本：just bump <版本|major|minor|patch>");
-  log("发版：  just release <版本>（改版本 + commit + tag + push，触发三平台打包）");
+  log("发版：  just release [<版本>]（不给版本就交互式问；= 改版本 + commit + tag + push）");
   process.exit(0);
 }
 
