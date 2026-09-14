@@ -12,6 +12,9 @@ pnpm-debug.log*
 src-tauri/target/
 src-tauri/gen/schemas/
 
+# 本地打出来的独立可执行文件（just release）
+out/
+
 # ---------- 应用数据 ----------
 # SQLite 数据库固定落在 应用目录/.data/data.db
 .data/

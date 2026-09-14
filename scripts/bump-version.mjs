@@ -99,7 +99,7 @@ if (show && !spec) {
   for (const entry of skipped) log(`  - ${entry.target.file.padEnd(26)} 跳过（未找到记录）`);
   log("");
   log("改版本：just bump <版本|major|minor|patch>");
-  log("发版：  just release [<版本>]（不给版本就交互式问；= 改版本 + commit + tag + push）");
+  log("发版：  just publish [<版本>]（不给版本就交互式问；= 改版本 + commit + tag + push）");
   process.exit(0);
 }
 
@@ -127,7 +127,7 @@ for (const entry of [...required, ...skipped]) {
   log(`  ${dryRun ? "·" : "✓"} ${entry.target.file.padEnd(26)} ${entry.current} → ${next}`);
 }
 
-if (!dryRun) log("\n下一步：just release（已包含 commit + tag + push）或手动 git commit");
+if (!dryRun) log("\n下一步：just publish（已包含 commit + tag + push）或手动 git commit");
 
 // stdout 只给版本号
 console.log(next);

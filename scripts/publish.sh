@@ -1,11 +1,11 @@
 #!/bin/sh
-# 发版脚本（被 `just release <版本>` 调用）：
+# 发版脚本（被 `just publish <版本>` 调用）：
 #   1. 统一改版本号（package.json / tauri.conf.json / Cargo.toml）
 #   2. git commit
 #   3. git tag -a v<版本>
 #   4. git push（分支 + tag，tag 推送即触发 GitHub Actions 三平台打包与 Release）
 #
-# 用法：sh scripts/release.sh 0.2.0 | patch | minor | major [--dry-run] [--no-push]
+# 用法：sh scripts/publish.sh 0.2.0 | patch | minor | major [--dry-run] [--no-push]
 #       不给版本参数时：终端下交互式询问（回车 = patch），非终端直接报用法
 set -eu
 
@@ -35,11 +35,13 @@ done
 
 usage() {
     cat >&2 <<'EOF'
-用法：just release <版本|major|minor|patch> [--dry-run] [--no-push]
+用法：just publish <版本|major|minor|patch> [--dry-run] [--no-push]
 
-  just release 0.2.0     指定版本
-  just release patch     0.1.0 → 0.1.1（也支持 minor / major）
-  just release --dry-run 预览下一个 patch 版本的改动
+（只想在本地出一个独立可执行文件、不动版本号：just release）
+
+  just publish 0.2.0     指定版本
+  just publish patch     0.1.0 → 0.1.1（也支持 minor / major）
+  just publish --dry-run 预览下一个 patch 版本的改动
 EOF
 }
 

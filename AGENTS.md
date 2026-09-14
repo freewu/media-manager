@@ -35,11 +35,16 @@ git push origin main            # 或 git push origin HEAD
 
 ### 1.2 每次改版本号 → 必须打 tag → 触发三平台自动打包 Release
 
+> 两个命令别混：
+> - **`just release`** = 本地编译出**当前平台的免安装独立可执行文件**（`out/`，**不改版本号**、不提交、不推送）。
+> - **`just publish <版本>`** = 改版本号 + commit + tag + push，由 GitHub Actions 出三平台 Release。
+> 改版本号只能走 `just publish`，`just release` 一律不碰版本号。
+
 ```bash
-just release 0.2.0              # 指定版本
-just release patch              # 也支持 minor / major
-just release                    # 不带参数：终端里问你要哪个版本（回车 = patch）
-just release --dry-run          # 只预览（默认下一个 patch），不改文件不提交
+just publish 0.2.0              # 指定版本
+just publish patch              # 也支持 minor / major
+just publish                    # 不带参数：终端里问你要哪个版本（回车 = patch）
+just publish --dry-run          # 只预览（默认下一个 patch），不改文件不提交
 ```
 
 这一条命令会依次做：
@@ -72,7 +77,7 @@ just release --dry-run          # 只预览（默认下一个 patch），不改�
 - [ ] `just check`（clippy `-D warnings`）无告警
 - [ ] 用法有变化 → 更新 `README.md`；流程有变化 → 更新本文件
 - [ ] `git commit` + `git push`
-- [ ] 改了版本号 → `just release <版本>`（tag 已推，Release 已触发）
+- [ ] 改了版本号 → `just publish <版本>`（tag 已推，Release 已触发）
 
 ---
 
@@ -100,12 +105,13 @@ just test             # cargo test（可 just test scan --nocapture）
 just check            # typecheck + cargo check + clippy -D warnings
 just verify           # typecheck + test
 just fmt / fmt-check  # cargo fmt / --check
-just build-exe        # 只出 release exe
-just run              # 打包后直接运行 release 版
+just release          # 本地打独立可执行文件 → out/（不改版本号、不提交）
+just build-exe        # 只编译不复制（产物在 src-tauri/target/release/）
+just run              # 编译后直接运行 release 版
 just db [路径]        # 打印 SQLite 数据概况
 just version          # 打印当前版本号（校验三个文件是否一致）
 just bump <版本>      # 只改版本号，不提交
-just release <版本>   # 改版本 + commit + tag + push（触发三平台 Release）
+just publish <版本>   # 改版本 + commit + tag + push（触发三平台 Release）
 ```
 
 ---
@@ -126,7 +132,7 @@ src-tauri/src/
   commands.rs              全部 #[tauri::command]（薄层，逻辑放 db/scanner）
   models.rs / error.rs     数据结构 / AppError
 src-tauri/tests/core.rs    集成测试（唯一测试入口）
-scripts/                   gen-icon.mjs、db-info.mjs、bump-version.mjs、release.sh
+scripts/                   gen-icon.mjs、db-info.mjs、build-standalone.mjs（just release）、bump-version.mjs、publish.sh（just publish）
 ```
 
 ### 4.2 Rust
@@ -146,7 +152,8 @@ scripts/                   gen-icon.mjs、db-info.mjs、bump-version.mjs、relea
 ### 4.4 版本号
 
 三个地方必须始终一致：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`。
-只改版本号不动别的 → `just bump <版本>`；要发版 → `just release <版本>`（见 §1.2）。
+只改版本号不动别的 → `just bump <版本>`；要发版（打 tag 让 CI 出三平台包）→ `just publish <版本>`；
+只想本地出一个免安装可执行文件 → `just release`（不碰版本号，见 §1.2）。
 
 ---
 

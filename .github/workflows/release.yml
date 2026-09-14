@@ -80,7 +80,7 @@ jobs:
           set -euo pipefail
           version="$(node -p "require('./package.json').version")"
           if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
-            echo "✗ tag ${GITHUB_REF_NAME} 与 package.json 的 ${version} 不一致（先跑 just release <版本>）"
+            echo "✗ tag ${GITHUB_REF_NAME} 与 package.json 的 ${version} 不一致（先跑 just publish <版本>）"
             exit 1
           fi
           echo "✓ 版本 ${version}"

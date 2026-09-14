@@ -35,18 +35,25 @@
 见 [`AGENTS.md`](./AGENTS.md)（完整工作流程）。要点：
 
 - **每完成一个任务** → `just verify` 全绿后 commit + push；
-- **每次改版本号** → `just release <版本>`：同步四个文件的版本号（`package.json`、`src-tauri/tauri.conf.json`、`Cargo.toml`、`Cargo.lock`）→ commit → 打 tag `v<版本>` → push；
+- **每次改版本号** → `just publish <版本>`：同步四个文件的版本号（`package.json`、`src-tauri/tauri.conf.json`、`Cargo.toml`、`Cargo.lock`）→ commit → 打 tag `v<版本>` → push；
 - push tag 触发 [`.github/workflows/release.yml`](./.github/workflows/release.yml)：**Windows / macOS / Linux 三个平台**各自编译**独立可执行文件**（`--no-bundle`，不打安装包），macOS 同时出 Apple Silicon 与 Intel 两个架构，产物 + `SHA256SUMS.txt` 自动发布到 GitHub Release；
 - 每次 push / PR 跑 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)：类型检查 + `cargo fmt --check` + `clippy -D warnings` + `cargo test`。
 
 ```bash
+# 本地出一个当前平台、免安装、可直接执行的单文件（不动版本号、不联网）
+just release                    # → out/media-manager-0.1.0-windows-x86_64.exe + SHA256SUMS.txt
+just release --target <triple>  # 指定目标（需先 rustup target add）
+just release --no-copy          # 只编译，产物留在 src-tauri/target/release/
+
+# 发版（改版本号 + commit + tag + push，由 CI 出三平台包）
 just version           # 看当前版本（校验各文件是否一致）
-just release           # 不带参数：终端里问一下要哪个版本（回车 = patch）
-just release patch     # 0.1.0 → 0.1.1，改版本 + commit + tag + push
-just release 0.2.0 --dry-run   # 只预览（默认下一个 patch），不改文件不提交
+just publish           # 不带参数：终端里问一下要哪个版本（回车 = patch）
+just publish patch     # 0.1.0 → 0.1.1，改版本 + commit + tag + push
+just publish 0.2.0 --dry-run   # 只预览（默认下一个 patch），不改文件不提交
 ```
 
 Release 产物命名：`media-manager-<版本>-<windows-x86_64.exe|macos-aarch64|macos-x86_64|linux-x86_64>`。
+`just release` 的本地产物用同一套命名，放在 `out/`（已在 `.gitignore` 里）。
 
 > CI 里会删掉 `.cargo/config.toml`（本地用的中科大镜像）走官方源。
 
@@ -67,15 +74,16 @@ Release 产物命名：`media-manager-<版本>-<windows-x86_64.exe|macos-aarch64
 just                 # 列出全部命令
 just setup           # 首次准备：npm install + cargo fetch
 just dev             # 开发模式（Vite 热更新 + Tauri 窗口）
-just build-exe       # 只出 release exe（不联网下载 NSIS/WiX）
+just release         # 本地打免安装单文件 → out/（不改版本号、不联网）
+just build-exe       # 只编译（不复制到 out/，不联网下载 NSIS/WiX）
 just build           # 完整打包（exe + 安装包，打安装包需要联网）
-just run             # 打包并直接运行 release 版
+just run             # 编译后直接运行 release 版
 just test            # Rust 测试
 just check           # 类型检查 + cargo check + clippy -D warnings
 just verify          # 提交前跑一遍：类型检查 + 测试
 just db              # 看 SQLite 里的数据（表 / 条数 / 媒体库 / 类型分布 / 设置）
 just doctor          # 检查工具链版本与数据目录
-just clean           # 清理 dist / target / .data
+just clean           # 清理 dist / out / target / .data
 ```
 
 <details>
@@ -95,11 +103,13 @@ just clean           # 清理 dist / target / .data
 | `just verify` | typecheck + test |
 | `just fmt` / `just fmt-check` | `cargo fmt` / `cargo fmt --check` |
 | `just build` (`b`) | 完整打包（前端构建 + release exe + NSIS/MSI 安装包） |
-| `just build-exe` | `tauri build --no-bundle`，只出 exe |
-| `just run` | `just build-exe` 后直接启动 release exe |
+| `just release` | 本地打免安装单文件：编译 + 复制到 `out/media-manager-<版本>-<平台>-<架构>[.exe]` + 生成 `SHA256SUMS.txt`（不动版本号、不提交、不联网） |
+| `just build-exe` | 等价于 `just release --no-copy`：`tauri build --no-bundle`，产物留在 `src-tauri/target/release/` |
+| `just run` | 编译后直接启动 release exe |
+| `just publish [版本]` | 发版：改版本号 + commit + tag + push（由 CI 出三平台 Release） |
 | `just icon` | 重新生成图标（`app-icon.png` + `src-tauri/icons/*`） |
 | `just db [路径]` | 打印数据库概况（默认自动探测 `.data/data.db`） |
-| `just clean` / `just clean-all` | 删构建产物与开发数据库 / 连 `node_modules` 一起删 |
+| `just clean` / `just clean-all` | 删 `dist` `out` `target` `.data` / 连 `node_modules` 一起删 |
 
 </details>
 
@@ -170,11 +180,14 @@ just db path/to/data.db      # 指定路径
 ```
 media-manager/
 ├─ index.html
-├─ justfile                     # 项目管理入口（just dev / test / build-exe / db …）
+├─ justfile                     # 项目管理入口（just dev / test / release / publish / db …）
 ├─ package.json                 # 前端脚本与依赖
 ├─ vite.config.ts               # dev server 固定 1420 端口
 ├─ scripts/gen-icon.mjs         # 纯 JS 生成 1024×1024 应用图标
 ├─ scripts/db-info.mjs          # just db：用 node:sqlite 只读打印数据库概况
+├─ scripts/build-standalone.mjs # just release：本地编译 + 收集独立可执行文件到 out/
+├─ scripts/bump-version.mjs     # 同步四个文件的版本号（just version / bump / publish）
+├─ scripts/publish.sh           # just publish：改版本 + commit + tag + push
 ├─ src/                         # React 前端
 │  ├─ App.tsx                   # 状态编排（媒体库 / 查询 / 扫描 / 选中项）
 │  ├─ components/               # Sidebar、Toolbar、ScanBar、MediaGrid、DetailPanel、SettingsDialog

@@ -96,7 +96,14 @@ fmt-check:
 build:
 	{{npm}} run app:build
 
-# 只出 release exe，不联网打安装包
+# 用法：just release                   当前平台 → out/media-manager-<版本>-<平台>-<架构>[.exe]
+#       just release --target <triple>  指定目标（需先 rustup target add）
+#       just release --no-copy          只编译不复制
+# 本地打免安装单文件到 out/：不改版本号、不提交、不联网，拷走即可运行
+release *args:
+	@{{node}} scripts/build-standalone.mjs {{args}}
+
+# 只编译不复制（等价于 just release --no-copy）
 build-exe:
 	{{npm}} run app:build -- --no-bundle
 
@@ -116,7 +123,7 @@ db *args:
 
 # 删除构建产物与开发数据库（保留 node_modules）
 clean:
-	rm -rf dist src-tauri/target .data src-tauri/target/debug/.data src-tauri/target/release/.data
+	rm -rf dist out src-tauri/target .data src-tauri/target/debug/.data src-tauri/target/release/.data
 
 # 彻底清理：连 node_modules 一起删
 clean-all: clean
@@ -132,11 +139,11 @@ version:
 bump spec:
     @{{node}} scripts/bump-version.mjs {{spec}}
 
-# 发版：改版本号 → commit → tag v<版本> → push，push tag 自动出三平台 Release
-# 用法：just release（交互式，回车 = patch）| just release patch | just release 0.2.0
-#       just release --dry-run（预览下一个 patch）| just release 1.0.0 --no-push
-release spec="" *args:
-    @NODE_BIN={{node}} sh scripts/release.sh {{spec}} {{args}}
+# 用法：just publish（交互式，回车 = patch）| just publish patch | just publish 0.2.0
+#       just publish --dry-run（预览）| just publish 1.0.0 --no-push
+# 发版：改版本号 + commit + tag + push（触发三平台 CI Release；本地出包用 just release）
+publish spec="" *args:
+	@NODE_BIN={{node}} sh scripts/publish.sh {{spec}} {{args}}
 
 # ---------------------------------------------------------------- 别名
 
